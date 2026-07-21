@@ -5,7 +5,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-app.use(express.static('public')); // serves public/index.html (the Scout demo UI)
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/chat', async (req, res) => {
   if (!process.env.GROQ_API_KEY) {
@@ -53,3 +54,5 @@ app.post('/api/chat', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Scout backend running → http://localhost:${PORT}`);
 });
+
+module.exports = app;
