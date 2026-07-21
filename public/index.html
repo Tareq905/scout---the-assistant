@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scout — AI Sourcing & Voice Agent</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#1B1714;
+    --panel:#221C18;
+    --panel-2:#2A2320;
+    --line:#3A322C;
+    --purple:#8E7CF2;
+    --purple-dim:#5B4FA0;
+    --blob-idle:#4A3B32;
+    --blob-listen:#4FB8A6;
+    --blob-speak:#8E7CF2;
+    --paper:#EDE3D6;
+    --muted:#8C8177;
+    --danger:#D4664A;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--paper);
+    font-family:'IBM Plex Sans',sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:28px 16px 40px;
+  }
+
+  .app{
+    width:100%;
+    max-width:760px;
+    display:flex;
+    flex-direction:column;
+    gap:0;
+  }
+
+  /* ---- header ---- */
+  header{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:10px 10px 0 0;
+    padding:18px 22px 16px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .brand-mark{ display:flex; align-items:center; gap:12px; }
+  .glyph{
+    width:36px;height:36px;
+    border-radius:8px;
+    background:linear-gradient(155deg, var(--purple), var(--purple-dim));
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    color:#fff;
+    font-size:15px;
+    flex-shrink:0;
+  }
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:20px;
+    font-weight:600;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--blob-listen);
+    margin:0 0 3px;
+  }
+
+  /* mode tabs */
+  .tabs{
+    display:flex;
+    gap:4px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:3px;
+  }
+  .tab{
+    border:none;
+    background:transparent;
+    color:var(--muted);
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:12.5px;
+    font-weight:500;
+    padding:6px 14px;
+    border-radius:16px;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .tab.active{ background:var(--purple); color:#fff; }
+
+  .sub{
+    margin:14px 0 0;
+    font-size:13px;
+    color:var(--muted);
+    line-height:1.5;
+    max-width:56ch;
+  }
+
+  /* ---- settings panel ---- */
+  .settings-panel{
+    display:none;
+    margin-top:14px;
+    padding:14px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+    gap:8px;
+    flex-direction:column;
+  }
+  .settings-panel.open{ display:flex; }
+  .settings-panel label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+  }
+  .settings-panel input{
+    background:var(--bg);
+    border:1px solid var(--line);
+    color:var(--paper);
+    padding:9px 11px;
+    border-radius:6px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    outline:none;
+    width:100%;
+  }
+  .settings-panel input:focus{ border-color:var(--purple-dim); }
+  .settings-row{ display:flex; flex-direction:column; gap:4px; }
+  .settings-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:4px; }
+  .btn-save{
+    background:var(--purple);
+    color:#fff;
+    border:none;
+    padding:8px 16px;
+    border-radius:6px;
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .settings-note{ font-size:11px; color:var(--muted); line-height:1.5; }
+  .settings-note a{ color:var(--blob-listen); }
+
+  /* ---- shell ---- */
+  .shell{
+    border:1px solid var(--line);
+    border-top:none;
+    background:var(--panel);
+    min-height:420px;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ---- chat mode ---- */
+  .log{
+    height:400px;
+    overflow-y:auto;
+    padding:20px 22px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .log::-webkit-scrollbar{ width:8px; }
+  .log::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+
+  .row{ display:flex; flex-direction:column; max-width:82%; }
+  .row.user{ align-self:flex-end; align-items:flex-end; }
+  .row.agent{ align-self:flex-start; align-items:flex-start; }
+  .meta{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    color:var(--muted);
+    margin-bottom:5px;
+  }
+  .row.agent .meta{ color:var(--blob-listen); }
+  .row.user .meta{ color:var(--purple); }
+  .bubble{
+    padding:11px 14px;
+    border-radius:8px;
+    font-size:13.5px;
+    line-height:1.55;
+    white-space:pre-wrap;
+  }
+  .row.user .bubble{
+    background:rgba(142,124,242,0.14);
+    border:1px solid rgba(142,124,242,0.3);
+    border-top-right-radius:2px;
+  }
+  .row.agent .bubble{
+    background:rgba(79,184,166,0.1);
+    border:1px solid rgba(79,184,166,0.25);
+    border-top-left-radius:2px;
+  }
+  .row.agent .bubble.error{
+    background:rgba(212,102,74,0.1);
+    border-color:rgba(212,102,74,0.35);
+    color:#E8B7A9;
+  }
+  .typing{ display:inline-flex; gap:4px; padding:4px 0; }
+  .typing span{ width:5px;height:5px;border-radius:50%; background:var(--blob-listen); animation:blink 1.1s infinite ease-in-out; }
+  .typing span:nth-child(2){ animation-delay:.15s; }
+  .typing span:nth-child(3){ animation-delay:.3s; }
+  @keyframes blink{ 0%,80%,100%{opacity:.25;} 40%{opacity:1;} }
+  .empty{ margin:auto; text-align:center; color:var(--muted); font-size:12.5px; max-width:34ch; line-height:1.6; }
+
+  .prompts{ display:flex; gap:8px; flex-wrap:wrap; padding:0 22px 14px; }
+  .chip{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--paper);
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    padding:7px 11px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .chip:hover{ border-color:var(--blob-listen); color:var(--blob-listen); }
+
+  .composer{
+    border-top:1px solid var(--line);
+    padding:14px 16px;
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .settings-btn{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--muted);
+    width:40px;height:40px;
+    border-radius:10px;
+    flex-shrink:0;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .settings-btn:hover{ border-color:var(--purple); color:var(--purple); }
+  .composer input[type="text"]{
+    flex:1;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--paper);
+    padding:11px 15px;
+    border-radius:22px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:13.5px;
+    outline:none;
+  }
+  .composer input[type="text"]:focus{ border-color:var(--purple-dim); }
+  .composer input[type="text"]:disabled{ opacity:.5; }
+  .send-btn{
+    background:var(--purple);
+    border:none;
+    color:#fff;
+    width:40px;height:40px;
+    border-radius:50%;
+    flex-shrink:0;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:filter .15s ease;
+  }
+  .send-btn:hover{ filter:brightness(1.1); }
+  .send-btn:disabled{ opacity:.35; cursor:not-allowed; }
+
+  /* ---- voice mode ---- */
+  .voice-view{
+    display:none;
+    flex:1;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:40px 24px;
+    min-height:420px;
+    position:relative;
+  }
+  .voice-view.active{ display:flex; }
+
+  .blob-wrap{
+    width:220px; height:220px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .blob{
+    width:110px; height:60px;
+    background:var(--blob-idle);
+    border-radius:50% 50% 45% 45% / 60% 60% 40% 40%;
+    transition:background .3s ease, transform .12s ease, box-shadow .2s ease;
+    box-shadow:0 0 0 0 rgba(142,124,242,0);
+  }
+  .blob-wrap.listening .blob{ background:var(--blob-listen); }
+  .blob-wrap.speaking .blob{ background:var(--blob-speak); }
+  .blob-wrap.connecting .blob{ background:var(--blob-idle); animation:pulse-connect 1s infinite ease-in-out; }
+  @keyframes pulse-connect{
+    0%,100%{ opacity:.5; } 50%{ opacity:1; }
+  }
+
+  .voice-status{
+    margin-top:26px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    color:var(--muted);
+    letter-spacing:0.02em;
+  }
+  .voice-hint{
+    margin-top:6px;
+    font-size:12px;
+    color:var(--muted);
+    opacity:.7;
+  }
+
+  .call-btn{
+    margin-top:28px;
+    background:var(--purple);
+    color:#fff;
+    border:none;
+    padding:11px 26px;
+    border-radius:24px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:filter .15s ease, background .15s ease;
+  }
+  .call-btn.active{ background:var(--danger); }
+  .call-btn:hover{ filter:brightness(1.08); }
+
+  .transcript{
+    width:100%;
+    max-width:480px;
+    margin-top:28px;
+    max-height:130px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    font-size:12px;
+  }
+  .transcript::-webkit-scrollbar{ width:6px; }
+  .transcript::-webkit-scrollbar-thumb{ background:var(--line); border-radius:3px; }
+  .t-line{ color:var(--muted); line-height:1.5; }
+  .t-line b{ color:var(--paper); font-weight:500; }
+
+  footer{
+    text-align:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    color:var(--muted);
+    padding:14px 6px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark">
+        <div class="glyph">S</div>
+        <div>
+          <p class="eyebrow">Sourcing & Pricing Agent</p>
+          <h1>Scout</h1>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="tabs">
+          <button class="tab active" id="tabChat" type="button">Chat</button>
+          <button class="tab" id="tabVoice" type="button">Voice</button>
+        </div>
+        <!-- <button class="settings-btn" id="settingsBtn" type="button" aria-label="Settings">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button> -->
+      </div>
+    </div>
+    <p class="sub">Preview of the AI agent for your retail arbitrage workflow — type a message or start a live voice call, and Scout responds either way.</p>
+
+    <!-- <div class="settings-panel" id="settingsPanel">
+      <div class="settings-row">
+        <label for="vapiKeyInput">Vapi Public Key</label>
+        <input id="vapiKeyInput" type="password" placeholder="pk_..." autocomplete="off" spellcheck="false">
+      </div>
+      <div class="settings-row">
+        <label for="vapiAssistantInput">Vapi Assistant ID (optional)</label>
+        <input id="vapiAssistantInput" type="text" placeholder="Leave blank to use the built-in Scout persona" autocomplete="off" spellcheck="false">
+      </div>
+      <p class="settings-note">Get your public key from the Vapi Dashboard → API Keys. If you leave Assistant ID blank, Scout uses a built-in voice persona defined in this page's code. Nothing here is stored — you'll re-enter it if you reload.<br>
+      <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener">dashboard.vapi.ai</a></p>
+      <div class="settings-actions">
+        <button class="btn-save" id="saveSettingsBtn" type="button">Save</button>
+      </div>
+    </div> -->
+  </header>
+
+  <div class="shell">
+
+    <!-- ===== CHAT MODE ===== -->
+    <div class="chat-view" id="chatView">
+      <div class="log" id="log">
+        <div class="empty" id="emptyState">Try one of the prompts below — or ask Scout anything about your arbitrage business.</div>
+      </div>
+      <div class="prompts" id="prompts">
+        <button class="chip" data-prompt="Find arbitrage deals in the home goods category — what should I look for?">Find deals: home goods</button>
+        <button class="chip" data-prompt="What margin percentage should trigger an automatic repricing alert?">Repricing threshold?</button>
+        <button class="chip" data-prompt="Draft a short customer reply for a delayed order.">Draft a customer reply</button>
+        <button class="chip" data-prompt="How would you flag a product as high risk before I source it?">Sourcing risk check</button>
+      </div>
+      <div class="composer">
+        <input type="text" id="input" placeholder="Message Scout…">
+        <button class="send-btn" id="sendBtn" aria-label="Send">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== VOICE MODE ===== -->
+    <div class="voice-view" id="voiceView">
+      <div class="blob-wrap" id="blobWrap">
+        <div class="blob" id="blob"></div>
+      </div>
+      <div class="voice-status" id="voiceStatus">TAP THE ORB TO START A CALL</div>
+      <div class="voice-hint" id="voiceHint">Scout will speak and listen in real time</div>
+      <button class="call-btn" id="callBtn" type="button">Start call</button>
+      <div class="transcript" id="transcript"></div>
+    </div>
+
+  </div>
+
+  <footer>DEMO ENVIRONMENT — CHAT VIA GROQ / LLAMA-3.3-70B · VOICE VIA VAPI</footer>
+</div>
+
+<!-- Vapi Web SDK (loaded lazily when Voice tab is first opened, see script below) -->
+<script>
+  const SYSTEM_PROMPT = "You are Scout, an AI sourcing and pricing agent built for an online retail arbitrage business. You help with: finding profitable products across marketplaces, setting margin/repricing rules, sourcing risk checks, and short customer support replies. Be concise and practical, use plain retail-arbitrage terminology (margin %, ROI, sourcing, restock alerts), and default to under 130 words unless asked for more detail. Format lists plainly, no markdown headers, no emojis when speaking aloud.";
+
+  /* =========================================================
+     TAB SWITCHING
+  ========================================================= */
+  const tabChat = document.getElementById('tabChat');
+  const tabVoice = document.getElementById('tabVoice');
+  const chatView = document.getElementById('chatView');
+  const voiceView = document.getElementById('voiceView');
+
+  function showChat(){
+    tabChat.classList.add('active');
+    tabVoice.classList.remove('active');
+    chatView.style.display = 'flex';
+    chatView.style.flexDirection = 'column';
+    voiceView.classList.remove('active');
+  }
+  function showVoice(){
+    tabVoice.classList.add('active');
+    tabChat.classList.remove('active');
+    voiceView.classList.add('active');
+    chatView.style.display = 'none';
+    loadVapiSdk(); // lazy-load the SDK the first time Voice is opened
+  }
+  tabChat.addEventListener('click', showChat);
+  tabVoice.addEventListener('click', showVoice);
+
+  /* =========================================================
+     SETTINGS PANEL (Vapi public key + optional assistant id)
+  ========================================================= */
+  const settingsBtn = document.getElementById('settingsBtn');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const vapiKeyInput = document.getElementById('vapiKeyInput');
+  const vapiAssistantInput = document.getElementById('vapiAssistantInput');
+  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
+  // These live only in memory for this tab session — never persisted.
+  let vapiPublicKey = '6af96507-20e5-496c-b5c0-ec18327c7b46';
+  let vapiAssistantId = 'fffaf3fa-f902-41c0-8bd2-5ab80ef0bc01';
+
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      settingsPanel.classList.toggle('open');
+    });
+  }
+
+  if (saveSettingsBtn) {
+    saveSettingsBtn.addEventListener('click', () => {
+      vapiPublicKey = vapiKeyInput.value.trim();
+      vapiAssistantId = vapiAssistantInput.value.trim();
+      if (settingsPanel) settingsPanel.classList.remove('open');
+      // Re-init the Vapi instance with the new key next time a call starts.
+      vapiReady = false;
+      vapi = null;
+    });
+  }
+
+  /* =========================================================
+     CHAT MODE (unchanged — talks to our /api/chat backend,
+     which keeps GROQ_API_KEY server-side)
+  ========================================================= */
+  const CHAT_ENDPOINT = '/api/chat';
+  let messages = [];
+
+  const log = document.getElementById('log');
+  const emptyState = document.getElementById('emptyState');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const prompts = document.getElementById('prompts');
+
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); sendMessage(); }
+  });
+  prompts.addEventListener('click', (e) => {
+    const btn = e.target.closest('.chip');
+    if(!btn) return;
+    input.value = btn.dataset.prompt;
+    sendMessage();
+  });
+  sendBtn.addEventListener('click', sendMessage);
+
+  function timeNow(){
+    return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function addRow(role, text, isError){
+    if(emptyState) emptyState.remove();
+    const row = document.createElement('div');
+    row.className = 'row ' + (role === 'user' ? 'user' : 'agent');
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = (role === 'user' ? 'YOU' : 'SCOUT') + ' · ' + timeNow();
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble' + (isError ? ' error' : '');
+    bubble.textContent = text;
+    row.appendChild(meta);
+    row.appendChild(bubble);
+    log.appendChild(row);
+    log.scrollTop = log.scrollHeight;
+    return bubble;
+  }
+
+  function addTyping(){
+    const row = document.createElement('div');
+    row.className = 'row agent';
+    row.id = 'typingRow';
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = 'SCOUT · ' + timeNow();
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+    row.appendChild(meta);
+    row.appendChild(bubble);
+    log.appendChild(row);
+    log.scrollTop = log.scrollHeight;
+  }
+  function removeTyping(){
+    const row = document.getElementById('typingRow');
+    if(row) row.remove();
+  }
+
+  async function sendMessage(){
+    const text = input.value.trim();
+    if(!text) return;
+
+    addRow('user', text);
+    messages.push({ role: 'user', content: text });
+    input.value = '';
+    input.disabled = true;
+    sendBtn.disabled = true;
+    addTyping();
+
+    try{
+      const res = await fetch(CHAT_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages] })
+      });
+
+      removeTyping();
+
+      if(!res.ok){
+        let detail = '';
+        try{ const errJson = await res.json(); detail = errJson?.error || ''; }catch(_){}
+        addRow('agent', 'Connection issue (' + res.status + '). ' + (detail || 'The chat backend did not respond as expected.'), true);
+        input.disabled = false; sendBtn.disabled = false; input.focus();
+        return;
+      }
+
+      const data = await res.json();
+      const reply = (data?.reply || '').trim() || '(No response received.)';
+      addRow('agent', reply);
+      messages.push({ role: 'assistant', content: reply });
+
+    }catch(err){
+      removeTyping();
+      addRow('agent', 'Could not reach the chat backend. Check that the server is running and try again.', true);
+    }
+
+    input.disabled = false;
+    sendBtn.disabled = false;
+    input.focus();
+  }
+
+  /* =========================================================
+     VOICE MODE (Vapi Web SDK — real live voice call)
+  ========================================================= */
+  const blobWrap = document.getElementById('blobWrap');
+  const voiceStatus = document.getElementById('voiceStatus');
+  const voiceHint = document.getElementById('voiceHint');
+  const callBtn = document.getElementById('callBtn');
+  const transcriptEl = document.getElementById('transcript');
+
+  let vapi = null;
+  let vapiReady = false;
+  let callActive = false;
+  let sdkLoading = null;
+
+  // Loads the Vapi Web SDK from CDN once, the first time Voice tab opens.
+  function loadVapiSdk(){
+    if (window.Vapi || sdkLoading) return sdkLoading;
+    sdkLoading = import('https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm')
+      .then((mod) => {
+        window.Vapi = mod.default.default || mod.default;
+      })
+      .catch(() => {
+        voiceStatus.textContent = 'COULD NOT LOAD VOICE SDK';
+        voiceHint.textContent = 'Check your internet connection and reload.';
+      });
+    return sdkLoading;
+  }
+
+  function initVapi(){
+    if (!window.Vapi) { return false; } // toggleCall() নিচে already await করে নিশ্চিত করবে
+    if (!vapiPublicKey) {
+      if (settingsPanel) settingsPanel.classList.add('open');
+      voiceStatus.textContent = 'ADD YOUR VAPI PUBLIC KEY IN SETTINGS';
+      return false;
+    }
+    if (!vapiReady) {
+      vapi = new window.Vapi(vapiPublicKey);
+      attachVapiListeners();
+      vapiReady = true;
+    }
+    return true;
+  }
+
+  function attachVapiListeners(){
+    vapi.on('call-start', () => {
+      callActive = true;
+      blobWrap.classList.remove('connecting');
+      blobWrap.classList.add('listening');
+      voiceStatus.textContent = 'CALL CONNECTED — LISTENING';
+      voiceHint.textContent = 'Speak naturally, Scout will respond out loud';
+      callBtn.textContent = 'End call';
+      callBtn.classList.add('active');
+    });
+
+    vapi.on('call-end', () => {
+      callActive = false;
+      blobWrap.classList.remove('listening', 'speaking', 'connecting');
+      voiceStatus.textContent = 'TAP THE ORB TO START A CALL';
+      voiceHint.textContent = 'Scout will speak and listen in real time';
+      callBtn.textContent = 'Start call';
+      callBtn.classList.remove('active');
+      blob.style.transform = 'scale(1)';
+    });
+
+    vapi.on('speech-start', () => {
+      // Assistant has started speaking
+      blobWrap.classList.remove('listening');
+      blobWrap.classList.add('speaking');
+      voiceStatus.textContent = 'SCOUT IS SPEAKING';
+    });
+
+    vapi.on('speech-end', () => {
+      // Assistant finished speaking — back to listening
+      blobWrap.classList.remove('speaking');
+      blobWrap.classList.add('listening');
+      voiceStatus.textContent = 'CALL CONNECTED — LISTENING';
+      blob.style.transform = 'scale(1)';
+    });
+
+    vapi.on('volume-level', (level) => {
+      // level is 0–1, use it to make the orb pulse with the audio
+      const scale = 1 + Math.min(level, 1) * 0.35;
+      blob.style.transform = `scale(${scale})`;
+    });
+
+    vapi.on('message', (message) => {
+      if (message.type === 'transcript' && message.transcriptType === 'final') {
+        addTranscriptLine(message.role, message.transcript);
+      }
+    });
+
+    vapi.on('error', (err) => {
+      console.error('Vapi error:', err);
+      voiceStatus.textContent = 'VOICE CALL ERROR — CHECK CONSOLE';
+      blobWrap.classList.remove('connecting', 'listening', 'speaking');
+      callBtn.textContent = 'Start call';
+      callBtn.classList.remove('active');
+      callActive = false;
+    });
+  }
+
+  function addTranscriptLine(role, text){
+    const line = document.createElement('div');
+    line.className = 't-line';
+    line.innerHTML = `<b>${role === 'user' ? 'You' : 'Scout'}:</b> ${text}`;
+    transcriptEl.appendChild(line);
+    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  }
+
+  const blob = document.getElementById('blob');
+
+  async function toggleCall(){
+    await loadVapiSdk();   // নতুন লাইন — SDK লোড হওয়া পর্যন্ত অপেক্ষা করবে
+    if (!initVapi()) return;
+
+    if (callActive) {
+      vapi.stop();
+      return;
+    }
+
+    blobWrap.classList.add('connecting');
+    voiceStatus.textContent = 'CONNECTING…';
+
+    if (vapiAssistantId) {
+      // Use a pre-built assistant configured in the Vapi Dashboard
+      vapi.start(vapiAssistantId);
+    } else {
+      // Built-in Scout persona — no dashboard setup required
+      vapi.start({
+        name: 'Scout',
+        firstMessage: "Hi, I'm Scout — your AI sourcing and pricing agent. What can I help you with?",
+        transcriber: { provider: 'deepgram', model: 'nova-2', language: 'en-US' },
+        model: {
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'system', content: SYSTEM_PROMPT }]
+        },
+        voice: { provider: '11labs', voiceId: '21m00Tcm4TlvDq8ikWAM' }
+      });
+    }
+  }
+
+  callBtn.addEventListener('click', toggleCall);
+  blobWrap.addEventListener('click', toggleCall);
+</script>
+
+</body>
+</html>
